@@ -68,13 +68,23 @@
 			const retry = document.getElementById("retry");
 			retry.addEventListener("click", () => window.location.reload());
 			// Draw text at the actual canvas resolution, with a pixel budget for high-DPI screens.
-			function resizeCanvas() {
-				const { width, height } = canvas.getBoundingClientRect();
+			function resizeCanvas(entries) {
+				const deviceSize = entries?.[0]?.devicePixelContentBoxSize?.[0];
+				const rect = canvas.getBoundingClientRect();
+				const density = window.devicePixelRatio || 1;
+				const estimatedWidth = Math.round(rect.width * density);
+				const estimatedHeight = Math.round(rect.height * density);
+				// Some embedded browsers report CSS pixels even in the device-pixel box.
+				const boxUsesDevicePixels = deviceSize &&
+					Math.abs(deviceSize.inlineSize - estimatedWidth) <= 1 &&
+					Math.abs(deviceSize.blockSize - estimatedHeight) <= 1;
+				const width = boxUsesDevicePixels ? deviceSize.inlineSize : estimatedWidth;
+				const height = boxUsesDevicePixels ? deviceSize.blockSize : estimatedHeight;
 				if (width <= 0 || height <= 0) return;
-				const pixelBudget = 1920 * 1080;
-				const density = Math.min(window.devicePixelRatio || 1, Math.sqrt(pixelBudget / (width * height)));
-				const renderWidth = Math.max(1, Math.floor(width * density));
-				const renderHeight = Math.max(1, Math.floor(height * density));
+				const pixelBudget = 2560 * 1440;
+				const scale = Math.min(1, Math.sqrt(pixelBudget / (width * height)));
+				const renderWidth = Math.max(1, Math.floor(width * scale));
+				const renderHeight = Math.max(1, Math.floor(height * scale));
 				if (canvas.width !== renderWidth) canvas.width = renderWidth;
 				if (canvas.height !== renderHeight) canvas.height = renderHeight;
 			}
@@ -86,9 +96,14 @@
 					return;
 				}
 				resizeCanvas();
-				new ResizeObserver(resizeCanvas).observe(canvas);
+				const observer = new ResizeObserver(resizeCanvas);
+				try {
+					observer.observe(canvas, { box: "device-pixel-content-box" });
+				} catch {
+					observer.observe(canvas);
+				}
 				window.addEventListener("resize", resizeCanvas);
-				const engine = new Engine({"args":[],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":76114176,"index.wasm":37685705},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4});
+				const engine = new Engine({"args":[],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":76114864,"index.wasm":37685705},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4});
 				await engine.startGame({
 					onProgress(current, total) {
 						if (total <= 0) return;
