@@ -11,7 +11,10 @@
 		* { box-sizing: border-box; }
 		html, body { margin: 0; background: #f4eadc; }
 		body { overflow: hidden; color: #4c4037; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; }
-		#canvas { display: block; outline: none; touch-action: none; }
+		#canvas {
+			position: fixed; inset: 0; width: 100%; height: 100%;
+			display: block; outline: none; touch-action: none;
+		}
 		#loading {
 			position: fixed; inset: 0; display: grid; place-items: center;
 			padding: 1rem; z-index: 1;
@@ -58,11 +61,23 @@
 	<script src="index.js"></script>
 	<script>
 		(async function start() {
+			const canvas = document.getElementById("canvas");
 			const loading = document.getElementById("loading");
 			const progress = document.getElementById("loading-progress");
 			const note = document.getElementById("loading-note");
 			const retry = document.getElementById("retry");
 			retry.addEventListener("click", () => window.location.reload());
+			// Draw text at the actual canvas resolution, with a pixel budget for high-DPI screens.
+			function resizeCanvas() {
+				const { width, height } = canvas.getBoundingClientRect();
+				if (width <= 0 || height <= 0) return;
+				const pixelBudget = 1920 * 1080;
+				const density = Math.min(window.devicePixelRatio || 1, Math.sqrt(pixelBudget / (width * height)));
+				const renderWidth = Math.max(1, Math.floor(width * density));
+				const renderHeight = Math.max(1, Math.floor(height * density));
+				if (canvas.width !== renderWidth) canvas.width = renderWidth;
+				if (canvas.height !== renderHeight) canvas.height = renderHeight;
+			}
 			try {
 				const missing = Engine.getMissingFeatures({ threads: false });
 				if (missing.length) {
@@ -70,7 +85,10 @@
 					note.textContent = "当前浏览器缺少运行游戏所需的功能，请试试新版 Chrome、Edge 或 Safari。";
 					return;
 				}
-				const engine = new Engine({"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":76113856,"index.wasm":37685705},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4});
+				resizeCanvas();
+				new ResizeObserver(resizeCanvas).observe(canvas);
+				window.addEventListener("resize", resizeCanvas);
+				const engine = new Engine({"args":[],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":76114176,"index.wasm":37685705},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4});
 				await engine.startGame({
 					onProgress(current, total) {
 						if (total <= 0) return;
